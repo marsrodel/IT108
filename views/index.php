@@ -72,7 +72,7 @@ $vac_pct = $total_cases > 0 ? round(($vaccinated / $total_cases) * 100) : 0;
       <h1 class="page-title">Dashboard</h1>
       <p class="subtitle">Overview of COVID-19 testing and outcomes</p>
       <div class="grid cols-4">
-        <div class="card"><div class="card-body kpi"><div><div class="label">Total Results</div><div class="value"><?php echo number_format($total_cases); ?></div></div><span class="pill">All time</span></div></div>
+        <div class="card"><div class="card-body kpi"><div><div class="label">Total Results</div><div class="value" style="color:var(--accent)"><?php echo number_format($total_cases); ?></div></div><span class="pill moderate">All Time</span></div></div>
         <div class="card"><div class="card-body kpi"><div><div class="label">Positive</div><div class="value" style="color:var(--danger)"><?php echo number_format($positivity_pct, 2); ?>%</div></div><span class="pill danger">Positivity</span></div></div>
         <div class="card"><div class="card-body kpi"><div><div class="label">Severe/Critical</div><div class="value" style="color:var(--warning)"><?php echo $sevcrit_pct; ?>%</div></div><span class="pill warning">Severity</span></div></div>
         <div class="card"><div class="card-body kpi"><div><div class="label">Vaccinated</div><div class="value" style="color:var(--success)"><?php echo $vac_pct; ?>%</div></div><span class="pill success">Coverage</span></div></div>

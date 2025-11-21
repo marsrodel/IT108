@@ -6,7 +6,39 @@ $per_page = 50;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($page < 1) { $page = 1; }
 
-$count_sql = "SELECT COUNT(*) AS c FROM patient";
+// Name search filter
+$name_filter = '';
+if (isset($_GET['q']) && $_GET['q'] !== '') {
+  $name_filter = trim($_GET['q']);
+}
+
+// Gender filter
+$allowed_genders = ['all', 'Male', 'Female', 'Other'];
+$gender_filter = isset($_GET['gender']) ? $_GET['gender'] : 'all';
+if (!in_array($gender_filter, $allowed_genders, true)) {
+  $gender_filter = 'all';
+}
+
+$name_filter_safe = '';
+if ($name_filter !== '') {
+  $name_filter_safe = mysqli_real_escape_string($conn, $name_filter);
+}
+
+// Build WHERE parts
+$whereParts = [];
+if ($name_filter_safe !== '') {
+  $whereParts[] = "CONCAT(first_name, ' ', last_name) LIKE '%{$name_filter_safe}%'";
+}
+if ($gender_filter !== 'all') {
+  $whereParts[] = "gender = '" . mysqli_real_escape_string($conn, $gender_filter) . "'";
+}
+
+$where = '';
+if (!empty($whereParts)) {
+  $where = 'WHERE ' . implode(' AND ', $whereParts);
+}
+
+$count_sql = "SELECT COUNT(*) AS c FROM patient {$where}";
 $count_res = mysqli_query($conn, $count_sql);
 $total_rows = 0;
 if ($count_res) {
@@ -63,6 +95,23 @@ $offset = ($page - 1) * $per_page;
     <section class="section">
       <h1 class="page-title">Patients</h1>
       <p class="subtitle">Basic info with location (50 per page)</p>
+      <div class="toolbar" style="margin:8px 0 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+        <form id="patientsFilterForm" method="get" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+          <div class="field" style="min-width:220px;">
+            <label for="nameSearch" class="label">Search name</label>
+            <input id="nameSearch" name="q" class="input" type="text" placeholder="e.g. Juan Dela Cruz" value="<?php echo htmlspecialchars($name_filter); ?>">
+          </div>
+          <div class="field" style="min-width:160px;">
+            <label for="genderFilter" class="label">Gender</label>
+            <select id="genderFilter" name="gender" class="status-select">
+              <option value="all" <?php echo $gender_filter === 'all' ? 'selected' : ''; ?>>All</option>
+              <option value="Male" <?php echo $gender_filter === 'Male' ? 'selected' : ''; ?>>Male</option>
+              <option value="Female" <?php echo $gender_filter === 'Female' ? 'selected' : ''; ?>>Female</option>
+              <option value="Other" <?php echo $gender_filter === 'Other' ? 'selected' : ''; ?>>Other</option>
+            </select>
+          </div>
+        </form>
+      </div>
       <div class="card">
         <div class="card-body">
           <div class="patients-grid">
@@ -79,8 +128,20 @@ $offset = ($page - 1) * $per_page;
 $sql = "SELECT p.first_name, p.last_name, p.gender, p.age,
                l.city, l.region, l.country
         FROM patient p
-        LEFT JOIN location l ON p.location_id = l.location_id
-        ORDER BY p.patient_id ASC
+        LEFT JOIN location l ON p.location_id = l.location_id";
+if (!empty($whereParts)) {
+  // reuse same conditions but prefix with table alias
+  $aliased = [];
+  foreach ($whereParts as $cond) {
+    $aliased[] = str_replace(
+      ['CONCAT(first_name,', 'gender ='],
+      ['CONCAT(p.first_name,', 'p.gender ='],
+      $cond
+    );
+  }
+  $sql .= ' WHERE ' . implode(' AND ', $aliased);
+}
+$sql .= " ORDER BY p.patient_id ASC
         LIMIT {$per_page} OFFSET {$offset}";
 $res = mysqli_query($conn, $sql);
 if ($res) {
@@ -111,21 +172,35 @@ if ($res) {
 <?php
   $base_url = strtok($_SERVER['REQUEST_URI'], '?');
 
+  // Keep current filters in pagination links
+  $query_parts = [];
+  if ($name_filter !== '') {
+    $query_parts[] = 'q='.urlencode($name_filter);
+  }
+  if ($gender_filter !== 'all') {
+    $query_parts[] = 'gender='.urlencode($gender_filter);
+  }
+  $query_base = implode('&', $query_parts);
+
   if (!function_exists('patients_page_link')) {
-    function patients_page_link($p, $label, $disabled = false, $active = false, $base_url = '') {
+    function patients_page_link($p, $label, $disabled = false, $active = false, $base_url = '', $query_base = '') {
       if ($disabled) {
         echo "<span class='pill' style='opacity:0.5;cursor:default;'>".htmlspecialchars($label)."</span>";
         return;
       }
       $class = 'pill';
       if ($active) { $class .= ' danger'; }
-      $url = $base_url.'?page='.$p;
+      $params = 'page='.$p;
+      if ($query_base !== '') {
+        $params .= '&'.$query_base;
+      }
+      $url = $base_url.'?'.$params;
       echo "<a href='".htmlspecialchars($url)."' class='".$class."'>".htmlspecialchars($label)."</a>";
     }
   }
 
   // Previous
-  patients_page_link(max(1, $page - 1), 'Previous', $page <= 1, false, $base_url);
+  patients_page_link(max(1, $page - 1), 'Previous', $page <= 1, false, $base_url, $query_base);
 
   $max_links = 10;
   $start = max(1, $page - 4);
@@ -135,7 +210,7 @@ if ($res) {
   }
 
   if ($start > 1) {
-    patients_page_link(1, '1', false, $page == 1, $base_url);
+    patients_page_link(1, '1', false, $page == 1, $base_url, $query_base);
     if ($start > 2) {
       echo "<span style='padding:0 4px;'>...</span>";
     }
@@ -143,18 +218,18 @@ if ($res) {
 
   for ($i = $start; $i <= $end; $i++) {
     if ($i == 1 || $i == $total_pages) { continue; }
-    patients_page_link($i, (string)$i, false, $i == $page, $base_url);
+    patients_page_link($i, (string)$i, false, $i == $page, $base_url, $query_base);
   }
 
   if ($end < $total_pages) {
     if ($end < $total_pages - 1) {
       echo "<span style='padding:0 4px;'>...</span>";
     }
-    patients_page_link($total_pages, (string)$total_pages, false, $page == $total_pages, $base_url);
+    patients_page_link($total_pages, (string)$total_pages, false, $page == $total_pages, $base_url, $query_base);
   }
 
   // Next
-  patients_page_link(min($total_pages, $page + 1), 'Next', $page >= $total_pages, false, $base_url);
+  patients_page_link(min($total_pages, $page + 1), 'Next', $page >= $total_pages, false, $base_url, $query_base);
 ?>
           </div>
 <?php endif; ?>
