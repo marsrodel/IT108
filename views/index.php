@@ -161,28 +161,28 @@ $vac_pct = $total_cases > 0 ? round(($vaccinated / $total_cases) * 100) : 0;
         <div class="card-body">
           <table class="table vaccines-table">
             <colgroup>
-              <col style="width:33.3%"><!-- ID -->
               <col style="width:33.3%"><!-- Vaccine -->
               <col style="width:33.3%"><!-- Manufacturer (if available) -->
+              <col style="width:33.3%"><!-- Doses Required -->
             </colgroup>
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Vaccine</th>
                 <th>Manufacturer</th>
+                <th>Doses Required</th>
               </tr>
             </thead>
             <tbody>
 <?php
   if ($vaccines_res) {
     while ($v = mysqli_fetch_assoc($vaccines_res)) {
-      $id   = isset($v['vaccine_id'])   ? htmlspecialchars($v['vaccine_id'])   : '';
       $name = isset($v['vaccine_name']) ? htmlspecialchars($v['vaccine_name']) : '';
       $mfr  = isset($v['manufacturer']) ? htmlspecialchars($v['manufacturer']) : '';
+      $doses = isset($v['doses_required']) ? htmlspecialchars($v['doses_required']) : '';
       echo "              <tr>";
-      echo "<td>{$id}</td>";
       echo "<td>{$name}</td>";
       echo "<td>{$mfr}</td>";
+      echo "<td>{$doses}</td>";
       echo "</tr>\n";
     }
   }
