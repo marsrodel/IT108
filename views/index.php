@@ -59,7 +59,7 @@ $vac_pct = $total_cases > 0 ? round(($vaccinated / $total_cases) * 100) : 0;
             <div class="hero-actions">
               <a href="/Covid/views/cases.php" class="button">View Cases</a>
               <a href="/Covid/views/patients.php" class="button light">Explore Patients</a>
-              <button type="button" class="button ghost" id="seeGrowthRateBtn">See Growth Rate</button>
+              <a href="#" class="button ghost" id="seeGrowthRateBtn">See Growth Rate</a>
             </div>
           </div>
         </div>
